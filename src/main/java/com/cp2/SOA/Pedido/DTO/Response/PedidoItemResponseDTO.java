@@ -1,4 +1,4 @@
-package com.cp2.SOA.Pedido.dto.Response;
+package com.cp2.SOA.Pedido.DTO.Response;
 
 import java.math.BigDecimal;
 

@@ -1,4 +1,4 @@
-package com.cp2.SOA.Pedido.dto.Request;
+package com.cp2.SOA.Pedido.DTO.Request;
 
 import jakarta.validation.constraints.NotBlank;
 
