@@ -29,20 +29,4 @@ public class Produto {
 
     @Column(name = "quantidade_estoque", nullable = false)
     private Integer quantidadeEstoque;
-
-    public Integer getQuantidadeEstoque() {
-        return quantidadeEstoque;
-    }
-
-    public String getNome() {
-        return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
-    public void setQuantidadeEstoque(Integer quantidadeEstoque) {
-        this.quantidadeEstoque = quantidadeEstoque;
-    }
 }
