@@ -1,4 +1,4 @@
-package com.cp2.SOA.Cliente.Entity;
+package com.cp2.SOA.Cliente.Model;
 
 import jakarta.persistence.*;
 import lombok.*;
