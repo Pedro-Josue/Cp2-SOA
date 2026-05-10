@@ -6,13 +6,13 @@
 - Kairo da Silva Silvestre de Carvalho – RM558288
 - Pedro Josué Pereira Almeida – RM554913
 
----
+<br>
 
 ## Descrição do sistema
 
 API REST de gerenciamento de pedidos com fluxo completo: criação do pedido, validação de estoque, simulação de pagamento e registro de notificações. O pagamento é aprovado automaticamente para pedidos até R$ 150,00; acima disso o pedido é cancelado. O banco de dados é iniciado com 3 clientes e 4 produtos pré-cadastrados via Flyway.
 
----
+<br>
 
 ## Tecnologias utilizadas
 
@@ -26,7 +26,7 @@ API REST de gerenciamento de pedidos com fluxo completo: criação do pedido, va
 
 Demais dependências: `pom.xml`.
 
----
+<br>
 
 ## Como executar o projeto
 
@@ -40,7 +40,7 @@ Demais dependências: `pom.xml`.
   - JDBC URL: `jdbc:h2:mem:pedidosdb`
   - Usuário: `root` | Senha: `1234`
 
----
+<br>
 
 ## Lista de endpoints
 
@@ -90,7 +90,7 @@ POST /pedidos
 - Quantidade de itens = 0 → erro 400
 - `PUT /status` permite atualizar pedidos cancelados para finalizados; o inverso não é possível
 
----
+<br>
 
 ## Fluxo do sistema
 
@@ -106,7 +106,7 @@ Ao chamar `POST /pedidos`, o `PedidoService` executa sequencialmente:
 
 **Ciclo de status:** `CRIADO` → `AGUARDANDO_PAGAMENTO` → `PAGO` → `FINALIZADO` | `CANCELADO`
 
----
+<br>
 
 ## Explicação da arquitetura
 
@@ -121,7 +121,7 @@ O projeto segue SOA (Service-Oriented Architecture): cada domínio tem responsab
 | `Cliente` | Fornece dados do cliente vinculado ao pedido |
 | `Produto` | Fornece dados e preço dos itens pedidos |
 
----
+<br>
 
 ## Como as responsabilidades foram separadas
 
@@ -139,35 +139,90 @@ Dentro de cada domínio, o código segue a divisão:
 
 Erros são centralizados em `Shared/Exception/GlobalExceptionHandler` (`@RestControllerAdvice`), que converte todas as exceções de domínio em respostas HTTP padronizadas via `ErrorResponseDTO`.
 
----
+<br>
 
 ## Diagrama arquitetural
 
-```
-Cliente HTTP
-     │
-     ▼
-PedidoController
-     │
-     ▼
-PedidoService ──────────────────────────────────────┐
-     │                                              │
-     ├──► ClienteRepository (valida cliente)        │
-     ├──► ProdutoRepository (busca produtos)        │
-     ├──► EstoqueService (valida/baixa estoque)     │
-     ├──► PagamentoService (processa pagamento)     │
-     └──► NotificacaoService (registra eventos)     │
-                                                    │
-                              H2 Database ◄─────────┘
+```mermaid
+graph TB
+    subgraph CLIENT["Cliente"]
+        HTTP["🌐 HTTP Client"]
+        SWAGGER["📄 Swagger UI\n/swagger-ui.html"]
+        H2UI["🗄️ H2 Console\n/h2-console"]
+    end
+
+    subgraph API["Camada de API — porta 8081"]
+        PC["PedidoController\nPOST /pedidos\nGET  /pedidos/{id}\nPUT  /pedidos/{id}/status"]
+        GEH["GlobalExceptionHandler\n@RestControllerAdvice"]
+    end
+
+    subgraph SERVICES["Camada de Serviços (Domínios SOA)"]
+        PS["PedidoService\n⚙️ Orquestrador"]
+        ES["EstoqueService"]
+        PAGS["PagamentoService"]
+        NS["NotificacaoService"]
+        PRODS["ProdutoService"]
+    end
+
+    subgraph REPOS["Camada de Repositórios (Spring Data JPA)"]
+        PR["PedidoRepository"]
+        PIR["PedidoItemRepository"]
+        CR["ClienteRepository"]
+        PRODR["ProdutoRepository"]
+        PAGR["PagamentoRepository"]
+        NR["NotificacaoRepository"]
+    end
+
+    subgraph DB["Banco de Dados — H2 In-Memory (pedidosdb)"]
+        direction LR
+        T_CLI[("clientes")]
+        T_PROD[("produtos")]
+        T_PED[("pedidos")]
+        T_PEDI[("pedido_items")]
+        T_PAG[("pagamentos")]
+        T_NOT[("notificacoes")]
+    end
+
+    HTTP -->|JSON request| PC
+    SWAGGER -.->|documenta| PC
+    H2UI -.->|inspeciona| DB
+
+    PC -->|delega| PS
+    PC -.->|exceções não tratadas| GEH
+    GEH -->|ErrorResponseDTO| HTTP
+    PS -->|PedidoResponseDTO| PC
+    PC -->|JSON response| HTTP
+
+    PS -->|findById| CR
+    PS -->|criarPedido / save| PR
+    PS -->|save itens| PIR
+    PS -->|buscarPorId| PRODS
+    PS -->|validar / baixar| ES
+    PS -->|processarPagamento| PAGS
+    PS -->|registrar eventos| NS
+
+    ES -->|buscarPorId / salvar| PRODS
+    PRODS -->|findById / save| PRODR
+    PAGS -->|save| PAGR
+    NS -->|save| NR
+
+    PR --> T_PED
+    PIR --> T_PEDI
+    CR --> T_CLI
+    PRODR --> T_PROD
+    PAGR --> T_PAG
+    NR --> T_NOT
 ```
 
----
+<br>
 
 ## Perguntas Discursivas
 
 ### 1. Como a comunicação entre os componentes foi organizada?
 
 O `PedidoService` é o único orquestrador: ele chama `EstoqueService`, `PagamentoService` e `NotificacaoService` via injeção de dependência, em sequência definida pela regra de negócio. Nenhum serviço chama outro de volta (sem dependência circular). Cada serviço conhece apenas seu domínio — `PagamentoService`, por exemplo, só sabe processar um pagamento e persistir o resultado; não conhece nada sobre estoque ou notificação. Isso mantém cada componente testável e substituível de forma independente.
+
+<br>
 
 ### 2. Se o componente de pagamento ficasse indisponível, qual seria o impacto? Como evoluir?
 
