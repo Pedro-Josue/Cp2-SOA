@@ -21,7 +21,10 @@ import com.cp2.SOA.Produto.Service.ProdutoService;
 import com.cp2.SOA.Shared.Exception.ClienteNotFoundException;
 import com.cp2.SOA.Shared.Exception.PagamentoRecusadoException;
 import com.cp2.SOA.Shared.Exception.PedidoNotFoundException;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -55,7 +58,20 @@ public class PedidoService {
     public PedidoResponseDTO criarPedido(PedidoCreateRequestDTO dto) {
 
         if (dto.itens() == null || dto.itens().isEmpty()) {
-            throw new IllegalArgumentException("Pedido não pode ser criado sem itens.");
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Pedido não pode ser criado sem itens."
+            );
+        }
+
+        boolean quantidadeInvalida = dto.itens().stream()
+        .anyMatch(item -> item.quantidade() == null || item.quantidade() <= 0);
+
+        if (quantidadeInvalida) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Quantidade deve ser maior que zero."
+            );
         }
 
         Cliente cliente = clienteRepository.findById(dto.clienteId())
